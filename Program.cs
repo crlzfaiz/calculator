@@ -7,121 +7,160 @@ namespace calculator
     {
         public static void Main(string[] args)
         {
-            Console.WriteLine(Calculate("( 2 + 3 * ( 7 - 5 ) ) - -10"));
-            
-            // while loop to check if continue running
+            List<string> inputList = new List<string>() {
+                "1 + 1",
+                "2 * 2",
+                "1 + 2 + 3",
+                "6 / 2",
+                "11 + 23",
+                "11.1 + 23",
+                "1 + 1 * 3",
+                "( 11.5 + 15.4 ) + 10.1",
+                "23 - ( 29.3 - 12.5 )",
+                "( 1 / 2 ) - 1 + 1",
+                "10 - ( 2 + 3 * ( 7 - 5 ) )", // nested bracket
+                "2.1 ^ 3 + ( 11 - 19 ) * 4" // power operator
+            };
+
+            try 
+            {
+                foreach(var input in inputList)
+                {
+                    Console.WriteLine(input + " = " + Calculate(input));
+                }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine("Error is found: " + ex.Message);
+            }
         }
 
-        public static double Calculate(string sum){
-            // split string into array
-            var dataArray = sum.Split(" ");
+        public static double Calculate(string input)
+        {
+            // split string input into array
+            var inputArray = input.Split(" ");
 
-            // declare 2 stacks used to store values and operators
-            Stack<double> valueStack = new Stack<double>();
+            // declare 2 stacks used to store numbers and operators
+            Stack<double> numberStack = new Stack<double>();
             Stack<string> operatorStack = new Stack<string>();
 
-            foreach(var data in dataArray){
-                double value;
-                bool isDouble = Double.TryParse(data, out value);
+            foreach(var entry in inputArray)
+            {
+                double number;
+                bool isDouble = Double.TryParse(entry, out number);
 
-                if (isDouble == true){
-                    valueStack.Push(value);
+                if (isDouble == true)
+                {
+                    numberStack.Push(number);
                 }
                 else {
-                    if (data == "("){
-                        operatorStack.Push(data);
+                    if (entry == "(")
+                    {
+                        operatorStack.Push(entry);
                     }
-                    else if (data == ")") {
-                        // there may be several operations to be done within bracket
-                        // check for the opening bracket to check if anymore calculation required
+                    else if (entry == ")")
+                    {
+                        // there may be several operations to be done within parenthesis
+                        // iterate until left parenthesis is found
                         while (operatorStack.Peek() != "("){
-                            var operand = operatorStack.Pop();
-                            var num1 = valueStack.Pop();
-                            var num2 = valueStack.Pop();
+                            var op = operatorStack.Pop();
+                            var num1 = numberStack.Pop();
+                            var num2 = numberStack.Pop();
 
-                            // TOOD: check if multiplication/division LHS 
-                            var result = PerformCalculation(operand, num2, num1);
+                            var result = PerformCalculation(op, num2, num1);
 
-                            // insert result back to value stack for next calculation
-                            valueStack.Push(result);
+                            // insert result back to number stack for next calculation
+                            numberStack.Push(result);
                         }
 
                         // remove "(" from stack
                         operatorStack.Pop();
                     }
-                    else {
-                        while(operatorStack.Count != 0 && IsHigherPrecedence(operatorStack.Peek(), data)){
-                            var operand = operatorStack.Pop();
-                            var num1 = valueStack.Pop();
-                            var num2 = valueStack.Pop();
+                    else 
+                    {
+                        // if operatorStack is not empty and the current entry has lower precedence start calculate
+                        while(operatorStack.Count != 0 && IsHigherPrecedence(operatorStack.Peek(), entry)){
+                            var op = operatorStack.Pop();
+                            var num1 = numberStack.Pop();
+                            var num2 = numberStack.Pop();
 
-                            // TOOD: check if multiplication/division LHS 
-                            var result = PerformCalculation(operand, num2, num1);
+                            var result = PerformCalculation(op, num2, num1);
 
-                            // insert result back to value stack for next calculation
-                            valueStack.Push(result);
+                            // insert result back to number stack for next calculation
+                            numberStack.Push(result);
                         }
 
-                        operatorStack.Push(data);
+                        operatorStack.Push(entry);
                     }
                 }
             }
 
             // start calculating leftovers from the stack
-            while(operatorStack.Count != 0){
-                var operand = operatorStack.Pop();
-                var num1 = valueStack.Pop();
-                var num2 = valueStack.Pop();
+            while(operatorStack.Count != 0)
+            {
+                var op = operatorStack.Pop();
+                var num1 = numberStack.Pop();
+                var num2 = numberStack.Pop();
 
-                // TOOD: check if multiplication/division LHS 
-                var result = PerformCalculation(operand, num2, num1);
+                var result = PerformCalculation(op, num2, num1);
 
-                // insert result back to value stack for next calculation
-                valueStack.Push(result);
+                // insert result back to number stack for next calculation
+                numberStack.Push(result);
             }
 
-            return valueStack.Pop();
+            return Math.Round(numberStack.Pop(), 3);
         }
 
-        private static double PerformCalculation(string operators, double num1, double num2){
-            if (operators == "+")
+        private static double PerformCalculation(string op, double num1, double num2)
+        {
+            if (op == "+")
             {
                 return num1 + num2;
             }
-            else if (operators == "-")
+            else if (op == "-")
             {
                 return num1 - num2;
             }
-            else if (operators == "*")
+            else if (op == "*")
             {
                 return num1 * num2;
             }
-            else if (operators == "/")
+            else if (op == "/")
             {
                 return num1 / num2;
             }
+            else if (op == "^")
+            {
+                double result = num1;
+                for (int i = 1; i < num2; i++)
+                {
+                    result = result * num1;
+                }
+
+                return result;
+            }
             else
             {
-                throw new ArgumentException("Unexpected operator: " + operators);
+                throw new ArgumentException("Unexpected operator: " + op);
             }
         }
 
-        private static bool IsHigherPrecedence(string operator1, string operator2){
-            bool operator1HigherPrecedence = true;
+        private static bool IsHigherPrecedence(string op1, string op2)
+        {
+            bool isOp1HigherPrecedence = true;
 
-            if (operator1 == "(" || operator1 == ")") return false;
+            // handles nested parenthesis
+            if (op1 == "(" || op1 == ")") return false;
 
-            bool isOperator1PlusMinus = 
-                operator1 == "+" || operator1 == "-" ? true : false;
-
-            bool isOperator2PlusMinus = 
-                operator2 == "+" || operator2 == "-" ? true : false;
-
-            if (isOperator1PlusMinus == true && isOperator2PlusMinus == false){
-                operator1HigherPrecedence =  false;
+            // checks if op1 has lower precedence than op2
+            // operator precedence: ^ >> * / >> - +
+            if (((op1 == "+" || op1 == "-") && (op2 == "*" || op2 == "/")) 
+                || (op2 == "^" && op1 != "^"))
+            {
+                isOp1HigherPrecedence =  false;
             }
 
-            return operator1HigherPrecedence;
+            return isOp1HigherPrecedence;
         }
     }
 }
